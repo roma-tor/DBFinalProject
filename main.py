@@ -198,3 +198,78 @@ def update_purchase(id: int, item: dict):
 def delete_purchase(id: int):
     execute("DELETE FROM purchase WHERE id=?", (id,))
     return {"deleted": id}
+
+@app.get("/q/where")
+def q_where(customer_id: int, min_qty: int, max_price: float):
+    # SELECT ... WHERE с несколькими условиями (AND AND AND)
+    sql = """
+    SELECT * FROM purchase
+    WHERE customer_id = ?
+      AND quantity >= ?
+      AND unit_price <= ?
+    """
+    return fetch_all(sql, (customer_id, min_qty, max_price))
+
+@app.get("/q/join")
+def q_join():
+    # JOIN: покупка + название товара + имя покупателя
+    sql = """
+    SELECT
+      p.id,
+      pr.name AS product_name,
+      c.name  AS customer_name,
+      p.quantity,
+      p.unit_price,
+      p.delivery_date
+    FROM purchase p
+    JOIN product pr ON pr.id = p.product_id
+    JOIN customer c ON c.id = p.customer_id
+    """
+    return fetch_all(sql)
+
+@app.put("/q/update")
+def q_update(customer_id: int, min_qty: int, percent: float):
+    # UPDATE с условием не по id, а по логике
+    factor = (100 - percent) / 100
+
+    conn = sqlite3.connect(DB)
+    cur = conn.cursor()
+    cur.execute("""
+        UPDATE purchase
+        SET unit_price = unit_price * ?
+        WHERE customer_id = ?
+          AND quantity >= ?
+    """, (factor, customer_id, min_qty))
+    conn.commit()
+    changed = cur.rowcount
+    conn.close()
+    return {"updated_rows": changed}
+
+
+@app.get("/q/groupby")
+def q_groupby():
+    sql = """
+    SELECT
+      c.id,
+      c.name,
+      COUNT(p.id) AS purchases_count,
+      SUM(p.quantity * p.unit_price) AS total_sum
+    FROM customer c
+    JOIN purchase p ON p.customer_id = c.id
+    GROUP BY c.id, c.name
+    """
+    return fetch_all(sql)
+
+
+@app.get("/q/sort")
+def q_sort(by: str = "unit_price", order: str = "asc"):
+    # Супер-просто: разрешим только 2 поля, чтобы не было SQL-injection
+    if by not in ("unit_price", "delivery_date"):
+        raise HTTPException(400, "by must be unit_price or delivery_date")
+    if order.lower() not in ("asc", "desc"):
+        raise HTTPException(400, "order must be asc or desc")
+
+    sql = f"SELECT * FROM purchase ORDER BY {by} {order.upper()}"
+    return fetch_all(sql)
+
+
