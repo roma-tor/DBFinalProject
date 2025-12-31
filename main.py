@@ -273,3 +273,34 @@ def q_sort(by: str = "unit_price", order: str = "asc"):
     return fetch_all(sql)
 
 
+import os
+import psycopg2
+from fastapi import Query
+
+PG_DSN = os.getenv(
+    "PG_DSN",
+    "dbname=shop_db user=shop_user password=password123 host=127.0.0.1 port=5432"
+)
+
+def pg_fetch_all(sql: str, params=()):
+    conn = psycopg2.connect(PG_DSN)
+    cur = conn.cursor()
+    cur.execute(sql, params)
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return rows
+
+@app.get("/search/products")
+def search_products_regex(
+    pattern: str = Query(..., description="PostgreSQL regex, e.g. milk|cheese"),
+    limit: int = Query(50, ge=1, le=500),
+):
+    # regex поиск по JSON (psql-style): meta::text ~ pattern
+    sql = """
+    SELECT id, name, manufacturer, unit, meta
+    FROM product
+    WHERE (meta::text ~ %s)
+    LIMIT %s
+    """
+    return pg_fetch_all(sql, (pattern, limit))
