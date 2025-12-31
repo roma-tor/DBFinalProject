@@ -1,0 +1,23 @@
+1) REST API (по теме)
+
+    Product (Товар)
+POST /products — создать
+GET /products — список
+GET /products/{id} — один
+PUT /products/{id} — обновить
+DELETE /products/{id} — удалить
+        
+        Customer (Покупатель)
+POST /customers
+GET /customers
+GET /customers/{id}
+PUT /customers/{id}
+DELETE /customers/{id}
+
+
+        Purchase (Покупка)
+POST /purchases — создать покупку (с product_id, customer_id)
+GET /purchases
+GET /purchases/{id}
+PUT /purchases/{id}
+DELETE /purchases/{id}
